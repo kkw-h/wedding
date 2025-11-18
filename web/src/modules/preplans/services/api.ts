@@ -1,5 +1,6 @@
 import { supabase } from '@/shared/api/supabase'
 import { Preplan } from '@/shared/api/types'
+import { HistoryItem } from '@/shared/api/types'
 
 export async function listPreplans(keyword?: string): Promise<Preplan[]> {
   if (!supabase) return []
@@ -15,6 +16,17 @@ export async function getPreplan(id: string): Promise<Preplan | null> {
   if (!supabase) return null
   const { data } = await supabase.from('preplans').select('*').eq('id', id).maybeSingle()
   return (data as Preplan) || null
+}
+
+export async function getPreplanHistory(id: string): Promise<HistoryItem[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('history')
+    .select('*')
+    .eq('entity_type', 'preplans')
+    .eq('entity_id', id)
+    .order('timestamp', { ascending: false })
+  return (data || []) as HistoryItem[]
 }
 
 export async function createPreplan(payload: { name: string; type: string; content_md: string; created_by: string; attachments?: string[] }): Promise<Preplan | null> {
