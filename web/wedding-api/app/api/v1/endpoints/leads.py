@@ -1,20 +1,22 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.api import deps
-from app.schemas.lead import LeadCreate, LeadResponse, LeadUpdate
+from app.schemas.lead import LeadCreate, LeadResponse, LeadUpdate, LeadPagination
 from app.crud import lead as crud_lead
 from app.models.user import User, RoleType
 
 router = APIRouter()
 
-@router.get("/", response_model=List[LeadResponse])
+@router.get("/", response_model=LeadPagination)
 def read_leads(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    size: int = 10,
+    status: Optional[str] = None,
+    keyword: Optional[str] = None,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -23,11 +25,16 @@ def read_leads(
     - PLANNER: 仅获取自己负责的线索
     """
     owner_id = None
-    if current_user.role == RoleType.PLANNER:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager:
         owner_id = current_user.id
         
-    leads = crud_lead.get_leads(db, skip=skip, limit=limit, owner_id=owner_id)
-    return leads
+    skip = (page - 1) * size
+    
+    leads = crud_lead.get_leads(db, skip=skip, limit=size, owner_id=owner_id, status=status, keyword=keyword)
+    total = crud_lead.count_leads(db, owner_id=owner_id, status=status, keyword=keyword)
+    
+    return {"total": total, "list": leads}
 
 @router.post("/", response_model=LeadResponse)
 def create_lead(
@@ -67,7 +74,33 @@ def read_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
     
     # Permission Check
-    if current_user.role == RoleType.PLANNER and lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     return lead
+
+@router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_lead(
+    lead_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    删除线索。
+    """
+    lead = crud_lead.get_lead(db, lead_id=lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    # Permission Check
+    # Only Admin or Manager can delete
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager:
+         raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+        
+    crud_lead.delete_lead(db, lead_id=lead_id)
+    return None

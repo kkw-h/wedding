@@ -14,12 +14,35 @@ def get_leads(
     db: Session, 
     skip: int = 0, 
     limit: int = 100, 
-    owner_id: Optional[UUID] = None
+    owner_id: Optional[UUID] = None,
+    status: Optional[str] = None,
+    keyword: Optional[str] = None
 ) -> List[Lead]:
     query = db.query(Lead)
     if owner_id:
         query = query.filter(Lead.owner_id == owner_id)
+    if status:
+        query = query.filter(Lead.status == status)
+    if keyword:
+        # Search in customer_name or phone
+        query = query.filter((Lead.customer_name.ilike(f"%{keyword}%")) | (Lead.phone.ilike(f"%{keyword}%")))
+        
     return query.offset(skip).limit(limit).all()
+
+def count_leads(
+    db: Session,
+    owner_id: Optional[UUID] = None,
+    status: Optional[str] = None,
+    keyword: Optional[str] = None
+) -> int:
+    query = db.query(Lead)
+    if owner_id:
+        query = query.filter(Lead.owner_id == owner_id)
+    if status:
+        query = query.filter(Lead.status == status)
+    if keyword:
+        query = query.filter((Lead.customer_name.ilike(f"%{keyword}%")) | (Lead.phone.ilike(f"%{keyword}%")))
+    return query.count()
 
 def create_lead(db: Session, lead: LeadCreate, owner_id: Optional[UUID] = None) -> Lead:
     db_lead = Lead(
@@ -41,3 +64,9 @@ def update_lead(db: Session, db_lead: Lead, lead_update: LeadUpdate) -> Lead:
     db.commit()
     db.refresh(db_lead)
     return db_lead
+
+def delete_lead(db: Session, lead_id: UUID) -> None:
+    db_lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if db_lead:
+        db.delete(db_lead)
+        db.commit()

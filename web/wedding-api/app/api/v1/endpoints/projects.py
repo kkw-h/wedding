@@ -24,7 +24,9 @@ def read_projects(
     - PLANNER: 仅获取自己负责的线索转化成的项目
     """
     owner_id = None
-    if current_user.role == RoleType.PLANNER:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    
+    if not is_admin_or_manager:
         owner_id = current_user.id
         
     projects = crud_project.get_projects(db, skip=skip, limit=limit, owner_id=owner_id)
@@ -45,7 +47,8 @@ def create_project(
         raise HTTPException(status_code=404, detail="Lead not found")
         
     # 2. Check Permission (Only owner or Admin/Manager can convert)
-    if current_user.role == RoleType.PLANNER and lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions to convert this lead")
 
     # 3. Check if Project already exists for this lead
@@ -94,7 +97,8 @@ def update_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
         
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
-    return crud_project.update_project(db, db_project=project, project_update=project_in)
+    return project.update_project(db, db_project=project, project_update=project_in)

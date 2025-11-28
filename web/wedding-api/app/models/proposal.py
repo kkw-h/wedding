@@ -17,6 +17,10 @@ class VersionActionType(str, enum.Enum):
     MANUAL_SAVE = "MANUAL_SAVE" # 手动保存
     PUBLISH = "PUBLISH"         # 发布/发给客户
 
+class VersionChangeType(str, enum.Enum):
+    MAJOR = "MAJOR"  # 重大修改
+    MINOR = "MINOR"  # 微调
+
 class Proposal(Base):
     """
     策划方案表 (proposals)
@@ -61,7 +65,8 @@ class ProposalVersion(Base):
     
     # 版本元信息
     action_type = Column(Enum(VersionActionType), default=VersionActionType.MANUAL_SAVE, nullable=False, comment="保存类型")
-    tag_name = Column(String, nullable=True, comment="版本标签 (如: v1.0 初稿)")
+    change_type = Column(Enum(VersionChangeType), default=VersionChangeType.MINOR, nullable=False, comment="修改类型")
+    version_number = Column(String, nullable=False, default="1.0", comment="版本号")
     
     editor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, comment="修改人/版本提交人")
     created_at = Column(DateTime, default=datetime.utcnow, comment="版本生成时间")

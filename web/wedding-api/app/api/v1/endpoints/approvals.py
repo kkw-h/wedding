@@ -26,7 +26,9 @@ def read_approvals(
     - MANAGER/ADMIN: 看所有
     """
     requester_id = None
-    if current_user.role == RoleType.PLANNER:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    
+    if not is_admin_or_manager:
         requester_id = current_user.id
         
     approvals = crud_approval.get_approvals(
@@ -49,7 +51,8 @@ def create_approval(
         raise HTTPException(status_code=404, detail="Project not found")
         
     # Permission: Planner must own project
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     return crud_approval.create_approval(db, approval_in=approval_in, requester_id=current_user.id)
@@ -65,7 +68,8 @@ def process_approval(
     审批处理 (通过/驳回)。
     - 仅 MANAGER/ADMIN 可操作
     """
-    if current_user.role not in [RoleType.MANAGER, RoleType.ADMIN]:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager:
         raise HTTPException(status_code=403, detail="Only managers can process approvals")
         
     approval = crud_approval.get_approval(db, approval_id=approval_id)

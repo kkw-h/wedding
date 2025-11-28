@@ -16,6 +16,7 @@ class Permissions:
     LEAD_VIEW_OWN = "lead:view_own"
     LEAD_CREATE = "lead:create"
     LEAD_EDIT = "lead:edit"
+    LEAD_DELETE = "lead:delete"
     LEAD_ASSIGN = "lead:assign"
     
     # Projects
@@ -35,16 +36,38 @@ class Permissions:
     USER_MANAGE = "user:manage"                # Create/Edit users
     SYSTEM_SETTINGS = "system:settings"        # Global configs
 
+# Detailed Information for Permissions
+PERMISSION_DETAILS = {
+    Permissions.DASHBOARD_VIEW_KPI: {"name": "查看KPI报表", "description": "允许查看公司营收、利润等核心经营指标数据"},
+    Permissions.DASHBOARD_VIEW_TEAM: {"name": "查看团队报表", "description": "允许查看团队成员的工作绩效和统计数据"},
+    Permissions.DASHBOARD_VIEW_PERSONAL: {"name": "查看个人报表", "description": "允许查看个人的工作任务和绩效统计"},
+    
+    Permissions.LEAD_VIEW_ALL: {"name": "查看所有线索", "description": "允许查看系统中的所有销售线索"},
+    Permissions.LEAD_VIEW_TEAM: {"name": "查看团队线索", "description": "允许查看所属团队成员的销售线索"},
+    Permissions.LEAD_VIEW_OWN: {"name": "查看个人线索", "description": "仅允许查看分配给自己的销售线索"},
+    Permissions.LEAD_CREATE: {"name": "创建线索", "description": "允许录入新的销售线索"},
+    Permissions.LEAD_EDIT: {"name": "编辑线索", "description": "允许修改线索的详细信息"},
+    Permissions.LEAD_DELETE: {"name": "删除线索", "description": "允许删除线索"},
+    Permissions.LEAD_ASSIGN: {"name": "分配线索", "description": "允许将线索分配给其他人员"},
+    
+    Permissions.PROJECT_VIEW_ALL: {"name": "查看所有项目", "description": "允许查看系统中的所有婚礼项目"},
+    Permissions.PROJECT_VIEW_TEAM: {"name": "查看团队项目", "description": "允许查看所属团队成员负责的婚礼项目"},
+    Permissions.PROJECT_VIEW_OWN: {"name": "查看个人项目", "description": "仅允许查看自己负责的婚礼项目"},
+    Permissions.PROJECT_EDIT_ALL: {"name": "编辑所有项目", "description": "允许修改任意项目的信息"},
+    Permissions.PROJECT_EDIT_OWN: {"name": "编辑个人项目", "description": "仅允许修改自己负责的项目信息"},
+    
+    Permissions.BUDGET_VIEW_COST: {"name": "查看成本价", "description": "允许查看项目和服务项目的成本价格"},
+    Permissions.BUDGET_VIEW_PROFIT: {"name": "查看利润率", "description": "允许查看项目和服务项目的利润分析"},
+    Permissions.BUDGET_APPROVE: {"name": "审批预算", "description": "允许审批项目预算、折扣和退款申请"},
+    Permissions.FINANCE_MANAGE: {"name": "财务管理", "description": "允许进行应收应付管理、发票开具等财务操作"},
+    
+    Permissions.USER_MANAGE: {"name": "用户管理", "description": "允许创建、编辑和禁用系统用户账号"},
+    Permissions.SYSTEM_SETTINGS: {"name": "系统设置", "description": "允许修改全局系统配置参数"},
+}
+
 # Default Role -> Permissions Mapping (for initialization)
 DEFAULT_ROLE_PERMISSIONS: Dict[RoleType, List[str]] = {
-    RoleType.ADMIN: [
-        Permissions.DASHBOARD_VIEW_KPI,
-        Permissions.LEAD_VIEW_ALL, Permissions.LEAD_CREATE, Permissions.LEAD_EDIT, Permissions.LEAD_ASSIGN,
-        Permissions.PROJECT_VIEW_ALL, Permissions.PROJECT_EDIT_ALL,
-        Permissions.BUDGET_VIEW_COST, Permissions.BUDGET_VIEW_PROFIT, Permissions.BUDGET_APPROVE,
-        Permissions.FINANCE_MANAGE,
-        Permissions.USER_MANAGE, Permissions.SYSTEM_SETTINGS
-    ],
+    RoleType.ADMIN: list(PERMISSION_DETAILS.keys()),
     RoleType.MANAGER: [
         Permissions.DASHBOARD_VIEW_TEAM,
         Permissions.LEAD_VIEW_TEAM, Permissions.LEAD_CREATE, Permissions.LEAD_EDIT, Permissions.LEAD_ASSIGN,
@@ -71,20 +94,26 @@ def sync_permissions(db: Session):
     Sync constants to Database (Idempotent)
     """
     # 1. Sync Definitions
-    defined_permissions = []
-    for name, code in vars(Permissions).items():
-        if name.isupper():
-            module = code.split(":")[0] if ":" in code else "common"
-            defined_permissions.append({"code": code, "module": module, "name": code}) # Name can be improved
-
-    perm_map = {}
-    for p_data in defined_permissions:
-        perm = db.query(Permission).filter(Permission.code == p_data["code"]).first()
+    for code, details in PERMISSION_DETAILS.items():
+        module = code.split(":")[0] if ":" in code else "common"
+        name = details["name"]
+        description = details["description"]
+        
+        perm = db.query(Permission).filter(Permission.code == code).first()
         if not perm:
-            perm = Permission(code=p_data["code"], module=p_data["module"], name=p_data["name"])
+            perm = Permission(code=code, module=module, name=name, description=description)
             db.add(perm)
-            db.flush()
-        perm_map[p_data["code"]] = perm.id
+        else:
+            # Update existing details
+            perm.name = name
+            perm.description = description
+            perm.module = module
+            db.add(perm)
+            
+    db.flush()
+    
+    # Map codes to IDs for role assignment
+    perm_map = {p.code: p.id for p in db.query(Permission).all()}
     
     # 2. Sync Default Role Mappings (Only if role has NO permissions yet, to avoid overwriting custom configs)
     for role, codes in DEFAULT_ROLE_PERMISSIONS.items():

@@ -1,0 +1,28 @@
+{
+  "name": "wedding-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "openapi:gen": "openapi-typescript $VITE_OPENAPI_URL -o src/api/types/openapi.d.ts"
+  },
+  "dependencies": {
+    "@wangeditor/editor": "^5.1.23",
+    "@wangeditor/editor-for-vue": "^5.1.12",
+    "ant-design-vue": "^4.2.3",
+    "axios": "^1.7.7",
+    "decimal.js": "^10.4.3",
+    "pinia": "^2.2.4",
+    "vue": "^3.5.0",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "openapi-typescript": "^6.7.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.0"
+  }
+}

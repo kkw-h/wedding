@@ -32,7 +32,8 @@ def create_proposal(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Ensure payload project_id matches path
@@ -53,7 +54,8 @@ def read_proposals(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
         
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
          
     return crud_proposal.get_proposals_by_project(db, project_id=project_id)
@@ -73,7 +75,8 @@ def read_proposal(
     
     # Check Permission via Project
     project = crud_project.get_project(db, project_id=proposal.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
          
     return proposal
@@ -94,7 +97,8 @@ def update_proposal(
         raise HTTPException(status_code=404, detail="Proposal not found")
         
     project = crud_project.get_project(db, project_id=proposal.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
          
     return crud_proposal.update_proposal(db, db_proposal=proposal, proposal_update=proposal_in)
@@ -117,7 +121,8 @@ def create_version(
         raise HTTPException(status_code=404, detail="Proposal not found")
     
     project = crud_project.get_project(db, project_id=proposal.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
     
     version_in.proposal_id = proposal_id
@@ -139,7 +144,8 @@ def read_versions(
         raise HTTPException(status_code=404, detail="Proposal not found")
     
     project = crud_project.get_project(db, project_id=proposal.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
          
     return crud_proposal.get_versions(db, proposal_id=proposal_id, skip=skip, limit=limit)
@@ -164,7 +170,8 @@ def restore_version(
         raise HTTPException(status_code=404, detail="Version not found")
         
     project = crud_project.get_project(db, project_id=proposal.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not enough permissions")
 
     # Restore logic: Update Proposal.current_data = Version.snapshot_data

@@ -32,7 +32,9 @@ def read_project_budget(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
         
-    if current_user.role == RoleType.PLANNER:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    
+    if not is_admin_or_manager:
         # 策划师只能看自己负责项目的报价单
         # Check through lead relation
         if project.lead.owner_id != current_user.id:
@@ -42,7 +44,7 @@ def read_project_budget(
     items = crud_budget.get_budget_items(db, project_id=project_id)
     
     # 3. Dynamic Response based on Role
-    if current_user.role in [RoleType.ADMIN, RoleType.MANAGER]:
+    if is_admin_or_manager:
         return [BudgetItemAdminResponse.model_validate(item) for item in items]
     else:
         return [BudgetItemResponse.model_validate(item) for item in items]
@@ -61,7 +63,8 @@ def create_budget_item(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
         
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     # If Planner, ensure cost_price is handled safely (e.g. they can set it if they know, or it defaults)
@@ -85,12 +88,14 @@ def update_budget_item(
         
     # Check Project Permission via item -> project
     project = crud_project.get_project(db, project_id=item.project_id)
-    if current_user.role == RoleType.PLANNER and project.lead.owner_id != current_user.id:
+    is_admin_or_manager = any(r in [RoleType.ADMIN.value, RoleType.MANAGER.value] for r in current_user.role_list)
+    
+    if not is_admin_or_manager and project.lead.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     # Security: If Planner tries to update cost_price?
     # Ideally, we should ignore cost_price updates from Planner if strict.
-    if current_user.role == RoleType.PLANNER:
+    if not is_admin_or_manager:
         # Remove 'cost_price' from the set of fields to update, effectively ignoring it
         if "cost_price" in item_in.model_fields_set:
             item_in.model_fields_set.remove("cost_price")

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 from app.models.lead import LeadStatus
@@ -32,3 +32,7 @@ class LeadResponse(LeadBase):
     status: LeadStatus
     
     model_config = ConfigDict(from_attributes=True)
+
+class LeadPagination(BaseModel):
+    total: int
+    list: List[LeadResponse]

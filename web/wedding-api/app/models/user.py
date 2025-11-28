@@ -77,6 +77,13 @@ class User(Base):
     )
 
     @property
+    def role_list(self):
+        """
+        获取用户角色列表 (List[str])
+        """
+        return [r.role for r in self.roles]
+
+    @property
     def permissions(self):
         """
         动态获取该用户的具体权限列表 (合并所有角色)
